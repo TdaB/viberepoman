@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg13
+    environment:
+      POSTGRES_USER: repoexplainer
+      POSTGRES_PASSWORD: repoexplainerpassword
+      POSTGRES_DB: repoexplainer_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - repoexplainer-network
+
+  analysis:
+    build:
+      context: ./analysis
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://repoexplainer:repoexplainerpassword@postgres:5432/repoexplainer_db
+    networks:
+      - repoexplainer-network
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      - postgres
+      - analysis
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://repoexplainer:repoexplainerpassword@postgres:5432/repoexplainer_db
+    networks:
+      - repoexplainer-network
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - repoexplainer-network
+
+volumes:
+  postgres_data:
+
+networks:
+  repoexplainer-network:
+    driver: bridge
